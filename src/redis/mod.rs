@@ -1,23 +1,24 @@
 mod proto;
+mod reader;
 
-use std::{net::TcpStream, io::{BufReader, BufRead}};
+use std::{net::TcpStream};
 
-use self::proto::Proto;
+use self::{proto::{Proto}, reader::BufioReader};
 
 pub struct Conn<'a> {
     stream: &'a TcpStream,
 
-    r: BufReader<&'a TcpStream>,
+    reader: BufioReader<TcpStream>,
 }
 
 impl<'a> Conn<'a> {
-    pub fn new(stream: &'a TcpStream) -> Self { 
+    pub fn new(stream: &'a TcpStream) -> Self {
         Self { 
             stream, 
-            r: BufReader::new(stream),
+            reader: BufioReader::new(stream),
         }
     }
 
-    pub fn decode(&self, proto: &mut Proto<'a>) {
+    pub fn decode(&mut self, proto: &mut Proto) {
     }
 }

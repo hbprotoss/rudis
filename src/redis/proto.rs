@@ -1,4 +1,6 @@
-use std::{io::BufReader, net::TcpStream};
+use std::{io::{Error, ErrorKind, Read}, };
+
+use super::reader::BufioReader;
 
 struct Buffer<'a> {
     buf: &'a mut [u8],
@@ -13,42 +15,55 @@ const INTEGER: ProtoType = b':';
 const BULK_STRING: ProtoType = b'$';
 const ARRAY: ProtoType = b'*';
 
-pub struct Proto<'a> {
+pub struct Proto {
     proto_type: ProtoType,
 
     // bulk string: length
     // array: size
-    count: u16,
+    data: Vec<u8>,
 
-    arr: [&'a Proto<'a>],
+    arr: Vec<Box<Proto>>,
 }
 
 pub struct Command<'a> {
-    req: &'a Proto<'a>,
-    reply: &'a Proto<'a>,
+    req: &'a Proto,
+    reply: &'a Proto,
 }
 
-const BUF_SIZE: usize = 32;
-const GROW_FACTOR: usize = 2;
-pub struct BufioReader<'a> {
-    reader: BufReader<&'a TcpStream>,
-
-    buf: Vec<u8>,
-    r: usize,
-    w: usize,
-}
-
-impl<'a> BufioReader<'a> {
-    pub fn new(stream: &'a TcpStream) -> Self {
-        Self {
-            reader: BufReader::new(stream),
-            buf: vec![0; BUF_SIZE],
-            r: 0,
-            w: 0,
+impl Proto {
+    pub fn decode(&mut self, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
+        let line = reader.read_clrf()?;
+        self.proto_type = line[0];
+        match self.proto_type {
+            SIMPLE_STRING | ERROR | INTEGER => {
+                self.data = line[1..line.len()-2].to_vec();
+            }
+            BULK_STRING => {
+                self.decode_bulk_string(line, reader)?;
+            }
+            ARRAY => {
+                let len = line[1..].parse::<usize>().unwrap();
+                self.arr = Vec::with_capacity(len);
+                for _ in 0..len {
+                    self.arr.push(self.decode(reader)?);
+                }
+            }
+            _ => {
+                return Err(Error::new(ErrorKind::Other, "unknown proto type"));
+            }
         }
+        Ok(self)
     }
 
-    pub fn read_clrf(&self) {
-        self.reader.read_vectored(self.buf);
+    fn decode_bulk_string(&self, line: &Vec<u8>, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
+        let len = num_from_bytes(&line[1..line.len()-2]);
     }
+}
+
+fn num_from_bytes(bytes: &[u8]) -> u16 {
+    let mut num = 0;
+    for b in bytes {
+        num = num * 10 + (*b - b'0') as u16;
+    }
+    num
 }
