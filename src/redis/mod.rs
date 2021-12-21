@@ -1,17 +1,17 @@
 pub mod proto;
 pub mod reader;
-pub mod handler;
+pub mod forwarder;
 pub mod cmd;
 
 use std::net::TcpStream;
+use std::io::Write;
 
-use self::{proto::Proto, reader::BufioReader, handler::Forwarder, cmd::Command};
+use self::{proto::Proto, reader::BufioReader};
 
 pub struct Conn<'a> {
     stream: &'a TcpStream,
 
     reader: BufioReader<&'a TcpStream>,
-    forward: Forwarder<'a>,
 }
 
 impl<'a> Conn<'a> {
@@ -19,7 +19,6 @@ impl<'a> Conn<'a> {
         Self { 
             stream, 
             reader: BufioReader::new(stream),
-            forward: Forwarder::new(stream),
         }
     }
 
@@ -32,7 +31,12 @@ impl<'a> Conn<'a> {
         }
     }
 
-    pub fn handle(&mut self, cmd: &Command) {
-        self.forward.forward(cmd);
+    pub fn encode_bytes(&mut self, bytes: &[u8]) {
+        match self.stream.write(bytes) {
+            Err(e) => {
+                println!("{:?}", e);
+            }
+            Ok(_) => {},
+        }
     }
 }

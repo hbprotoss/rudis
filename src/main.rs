@@ -3,19 +3,21 @@ mod redis;
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 
+use redis::forwarder::Forwarder;
 use redis::proto::Proto;
 use redis::Conn;
 use redis::cmd::Command;
 
 fn handle_client(stream: TcpStream) {
     let mut conn = Conn::new(&stream);
+    let mut forwarder = Forwarder::new(&mut conn);
     loop {
         let mut req = Proto::new();
         conn.decode(&mut req);
         println!("{:?}", req);
         let mut reply = Proto::new();
         let command = Command::new(&mut req, &mut reply);
-        conn.handle(&command);
+        forwarder.forward(&command);
     }
 }
 
