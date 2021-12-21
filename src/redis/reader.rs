@@ -1,6 +1,5 @@
 use std::{
-    io::{BufRead, BufReader, Error, Read, Take},
-    ops::Deref,
+    io::{BufRead, BufReader, Error, Read},
 };
 
 const SEEK_BUF_SIZE: usize = 8;
@@ -22,7 +21,7 @@ impl<R: Read> BufioReader<R> {
             match self.reader.read_until(b'\n', buf) {
                 Ok(n) => {
                     total += n;
-                    if n == 0 || buf[n - 1] == b'\r' {
+                    if n == 0 || buf[n - 2] == b'\r' {
                         return Ok(total);
                     }
                 }
@@ -48,7 +47,7 @@ impl<R: Read> BufioReader<R> {
     }
 
     pub fn read_n(&mut self, n: u64, buf: &mut Vec<u8>) -> Result<usize, Error> {
-        self.reader.by_ref().take(n).read(buf)
+        self.reader.by_ref().take(n).read_to_end(buf)
     }
 
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {

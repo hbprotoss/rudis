@@ -16,6 +16,7 @@ const INTEGER: ProtoType = b':';
 const BULK_STRING: ProtoType = b'$';
 const ARRAY: ProtoType = b'*';
 
+#[derive(Debug)]
 pub struct Proto {
     proto_type: ProtoType,
 
@@ -41,8 +42,9 @@ impl Proto {
     }
 
     pub fn decode(&mut self, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
-        let mut line= vec![0 as u8; 1];
-        let _ = reader.read_clrf(&mut line)?;
+        let mut line: Vec<u8> = vec![];
+        let n = reader.read_clrf(&mut line)?;
+        println!("{:?} read: {:?}", n, std::str::from_utf8(&line).unwrap());
         self.proto_type = line[0];
         match self.proto_type {
             SIMPLE_STRING | ERROR | INTEGER => {
@@ -63,19 +65,17 @@ impl Proto {
 
     fn decode_bulk_string(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
         let len = num_from_bytes(&line[1..line.len()-2]);
-        let to_read_size = 1 + len + 2;
-        let n = reader.read_n(to_read_size as u64, &mut self.data)?;
-        if (n as u16) < to_read_size {
+        let n = reader.read_n(len as u64, &mut self.data)?;
+        if (n as u16) < len {
             return Err(Error::new(ErrorKind::Other, "not enough data"));
         }
+        reader.discard(2);
         Ok(self)
     }
 
     fn decode_array(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
-        let len = num_from_bytes(&line[1..line.len()-2]);
-        let to_read_size = 1 + len * 2 + 2;
-        let array_size = reader.read_n(to_read_size as u64, &mut self.data)?;
-        for i in 0..array_size {
+        let array_size = num_from_bytes(&line[1..line.len()-2]);
+        for _ in 0..array_size {
             let mut p_proto = Box::new(Proto::new());
             p_proto.as_mut().decode(reader)?;
             self.arr.push(p_proto);

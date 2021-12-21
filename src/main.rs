@@ -1,13 +1,19 @@
 mod redis;
 
-use std::thread;
-use std::net::{TcpListener, TcpStream, Shutdown};
 use std::io::{Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
+use std::thread;
 
+use redis::proto::Proto;
 use redis::Conn;
 
 fn handle_client(stream: TcpStream) {
-    let conn = Conn::new(&stream);
+    let mut conn = Conn::new(&stream);
+    loop {
+        let mut proto = Proto::new();
+        conn.decode(&mut proto);
+        println!("{:?}", proto);
+    }
 }
 
 fn main() {
@@ -18,7 +24,7 @@ fn main() {
         match stream {
             Ok(stream) => {
                 println!("New connection: {}", stream.peer_addr().unwrap());
-                thread::spawn(move|| {
+                thread::spawn(move || {
                     // connection succeeded
                     handle_client(stream)
                 });

@@ -1,9 +1,9 @@
-mod proto;
-mod reader;
+pub mod proto;
+pub mod reader;
 
-use std::{net::TcpStream};
+use std::net::TcpStream;
 
-use self::{proto::{Proto}, reader::BufioReader};
+use self::{proto::Proto, reader::BufioReader};
 
 pub struct Conn<'a> {
     stream: &'a TcpStream,
@@ -20,5 +20,6 @@ impl<'a> Conn<'a> {
     }
 
     pub fn decode(&mut self, proto: &mut Proto) {
+        proto.decode(&mut self.reader);
     }
 }
