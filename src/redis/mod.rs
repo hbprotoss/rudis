@@ -8,7 +8,7 @@ use self::{proto::{Proto}, reader::BufioReader};
 pub struct Conn<'a> {
     stream: &'a TcpStream,
 
-    reader: BufioReader<TcpStream>,
+    reader: BufioReader<&'a TcpStream>,
 }
 
 impl<'a> Conn<'a> {
