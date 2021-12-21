@@ -3,16 +3,16 @@ use std::{net::TcpStream, str::from_utf8};
 
 use super::cmd::Command;
 
-pub struct Handler<'a> {
+pub struct Forwarder<'a> {
     stream: &'a TcpStream,
 }
 
-impl<'a> Handler<'a> {
+impl<'a> Forwarder<'a> {
     pub fn new(stream: &'a TcpStream) -> Self {
         Self { stream }
     }
 
-    pub fn handle(&mut self, cmd: &Command) {
+    pub fn forward(&mut self, cmd: &Command) {
         match cmd.name() {
             Some(name) => {
                 println!("command: {:?}", from_utf8(name).unwrap());

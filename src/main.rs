@@ -27,7 +27,7 @@ fn main() {
         match stream {
             Ok(stream) => {
                 println!("New connection: {}", stream.peer_addr().unwrap());
-                thread::spawn(move || {
+                thread::spawn(|| {
                     // connection succeeded
                     handle_client(stream)
                 });

@@ -5,13 +5,13 @@ pub mod cmd;
 
 use std::net::TcpStream;
 
-use self::{proto::Proto, reader::BufioReader, handler::Handler, cmd::Command};
+use self::{proto::Proto, reader::BufioReader, handler::Forwarder, cmd::Command};
 
 pub struct Conn<'a> {
     stream: &'a TcpStream,
 
     reader: BufioReader<&'a TcpStream>,
-    handler: Handler<'a>,
+    forward: Forwarder<'a>,
 }
 
 impl<'a> Conn<'a> {
@@ -19,7 +19,7 @@ impl<'a> Conn<'a> {
         Self { 
             stream, 
             reader: BufioReader::new(stream),
-            handler: Handler::new(stream),
+            forward: Forwarder::new(stream),
         }
     }
 
@@ -33,6 +33,6 @@ impl<'a> Conn<'a> {
     }
 
     pub fn handle(&mut self, cmd: &Command) {
-        self.handler.handle(cmd);
+        self.forward.forward(cmd);
     }
 }
