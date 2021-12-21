@@ -1,18 +1,21 @@
 mod redis;
 
-use std::io::{Read, Write};
-use std::net::{Shutdown, TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 use std::thread;
 
 use redis::proto::Proto;
 use redis::Conn;
+use redis::cmd::Command;
 
 fn handle_client(stream: TcpStream) {
     let mut conn = Conn::new(&stream);
     loop {
-        let mut proto = Proto::new();
-        conn.decode(&mut proto);
-        println!("{:?}", proto);
+        let mut req = Proto::new();
+        conn.decode(&mut req);
+        println!("{:?}", req);
+        let mut reply = Proto::new();
+        let command = Command::new(&mut req, &mut reply);
+        conn.handle(&command);
     }
 }
 

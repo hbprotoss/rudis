@@ -18,19 +18,15 @@ const ARRAY: ProtoType = b'*';
 
 #[derive(Debug)]
 pub struct Proto {
-    proto_type: ProtoType,
+    pub proto_type: ProtoType,
 
     // bulk string: length
     // array: size
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 
-    arr: Vec<Box<Proto>>,
+    pub arr: Vec<Box<Proto>>,
 }
 
-pub struct Command<'a> {
-    req: &'a Proto,
-    reply: &'a Proto,
-}
 
 impl Proto {
     pub fn new() -> Proto {
