@@ -9,16 +9,17 @@ use std::io::Write;
 use self::{proto::Proto, reader::BufioReader};
 
 pub struct Conn<'a> {
-    stream: &'a TcpStream,
+    stream: &'a mut TcpStream,
 
-    reader: BufioReader<&'a TcpStream>,
+    reader: BufioReader<TcpStream>,
 }
 
 impl<'a> Conn<'a> {
-    pub fn new(stream: &'a TcpStream) -> Self {
+    pub fn new(stream: &'a mut TcpStream) -> Self {
+        let read_stream = stream.try_clone().expect("Failed to clone stream");
         Self { 
             stream, 
-            reader: BufioReader::new(stream),
+            reader: BufioReader::new(read_stream),
         }
     }
 
@@ -29,6 +30,10 @@ impl<'a> Conn<'a> {
             }
             Ok(_) => {},
         }
+    }
+
+    pub fn encode(&mut self, proto: &Proto) {
+        proto.encode(self.stream).unwrap();
     }
 
     pub fn encode_bytes(&mut self, bytes: &[u8]) {

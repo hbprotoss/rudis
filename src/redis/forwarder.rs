@@ -1,24 +1,21 @@
 
 use std::str::from_utf8;
 
-use super::Conn;
+use crate::redis::proto::with_error;
+
 use super::cmd::Command;
 
-pub struct Forwarder<'a> {
-    proxy_conn: &'a mut Conn<'a>,
+pub struct Forwarder {
 }
 
-impl<'a> Forwarder<'a> {
-    pub fn new(proxy_conn: &'a mut Conn<'a>) -> Self {
-        let ret = Self { proxy_conn };
-        ret
-    }
+impl Forwarder {
+    pub fn new() -> Self { Self {  } }
 
-    pub fn forward(&mut self, cmd: &Command) {
+    pub fn forward(&mut self, cmd: &mut Command) {
         match cmd.name() {
             Some(name) => {
                 println!("command: {:?}", from_utf8(name).unwrap());
-                self.proxy_conn.encode_bytes(b"-ERR unknown command\r\n");
+                with_error(cmd.reply, "ERR unknown command");
             }
             None => {}
         }

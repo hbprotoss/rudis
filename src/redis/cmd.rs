@@ -3,8 +3,8 @@ use super::proto::Proto;
 pub const CMD_COMMAND: &[u8] = b"COMMAND";
 
 pub struct Command<'a> {
-    req: &'a mut Proto,
-    reply: &'a mut Proto,
+    pub req: &'a mut Proto,
+    pub reply: &'a mut Proto,
 }
 
 impl<'a> Command<'a> {
