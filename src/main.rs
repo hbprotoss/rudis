@@ -8,8 +8,8 @@ use redis::proto::Proto;
 use redis::Conn;
 use redis::cmd::Command;
 
-fn handle_client(mut stream: TcpStream) {
-    let mut conn = Conn::new(&mut stream);
+fn handle_client(stream: TcpStream) {
+    let mut conn = Conn::new_from_tcp_stream(stream);
     let mut forwarder = Forwarder::new();
     loop {
         let mut req = Proto::new();
