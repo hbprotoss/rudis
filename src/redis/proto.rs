@@ -1,4 +1,4 @@
-use std::{io::{Error, ErrorKind, Read, Write}, vec, };
+use std::{io::{Error, ErrorKind, Read, Write, BufWriter}, vec, fmt, };
 
 use super::reader::BufioReader;
 
@@ -18,12 +18,14 @@ const ARRAY: ProtoType = b'*';
 
 const CLRF: &[u8; 2] = b"\r\n";
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct Proto {
     pub proto_type: ProtoType,
 
     // bulk string: length
     // array: size
+    pub len: i16,
+
     pub data: Vec<u8>,
 
     pub arr: Vec<Box<Proto>>,
@@ -34,6 +36,7 @@ impl Proto {
     pub fn new() -> Proto {
         Proto {
             proto_type: UNKNOWN,
+            len: 0,
             data: vec![],
             arr: vec![],
         }
@@ -61,7 +64,7 @@ impl Proto {
         Ok(self)
     }
 
-    pub fn encode(&self, writer: &mut impl Write) -> Result<(), Error> {
+    pub fn encode(&self, writer: &mut BufWriter<impl Write>) -> Result<(), Error> {
         match self.proto_type {
             SIMPLE_STRING | ERROR | INTEGER => {
                 writer.write_all(&[self.proto_type])?;
@@ -71,15 +74,17 @@ impl Proto {
             }
             BULK_STRING => {
                 writer.write_all(&[self.proto_type])?;
-                writer.write_all(num_to_bytes(self.data.len() as u16).as_slice())?;
+                writer.write_all(self.len.to_string().as_bytes())?;
                 writer.write_all(CLRF)?;
-                writer.write_all(&self.data)?;
-                writer.write_all(CLRF)?;
+                if self.len > 0 {
+                    writer.write_all(&self.data)?;
+                    writer.write_all(CLRF)?;
+                }
                 Ok(())
             }
             ARRAY => {
                 writer.write_all(&[self.proto_type])?;
-                writer.write_all(num_to_bytes(self.arr.len() as u16).as_slice())?;
+                writer.write_all(self.len.to_string().as_bytes())?;
                 writer.write_all(CLRF)?;
                 for p in &self.arr {
                     p.encode(writer)?;
@@ -94,8 +99,12 @@ impl Proto {
 
     fn decode_bulk_string(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
         let len = num_from_bytes(&line[1..line.len()-2]);
+        self.len = len;
+        if len < 0 {
+            return Ok(self);
+        }
         let n = reader.read_n(len as u64, &mut self.data)?;
-        if (n as u16) < len {
+        if (n as i16) < len {
             return Err(Error::new(ErrorKind::Other, "not enough data"));
         }
         reader.discard(2);
@@ -104,6 +113,7 @@ impl Proto {
 
     fn decode_array(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
         let array_size = num_from_bytes(&line[1..line.len()-2]);
+        self.len = array_size;
         for _ in 0..array_size {
             let mut p_proto = Box::new(Proto::new());
             p_proto.as_mut().decode(reader)?;
@@ -120,12 +130,23 @@ pub fn with_error(proto: &mut Proto, err: &str) {
 }
 
 #[inline]
-fn num_from_bytes(bytes: &[u8]) -> u16 {
-    let mut num = 0;
-    for b in bytes {
-        num = num * 10 + (*b - b'0') as u16;
+fn num_from_bytes(bytes: &[u8]) -> i16 {
+    let mut data = bytes;
+    let mut negative = false;
+    if bytes[0] == b'-' {
+        negative = true;
+        data = &data[1..];
     }
-    num
+    let mut num = 0;
+    for b in data {
+        let i = *b as i16;
+        num = num * 10 + (i - b'0' as i16);
+    }
+    if negative {
+        -num
+    } else {
+        num
+    }
 }
 
 #[inline]
@@ -138,4 +159,29 @@ fn num_to_bytes(num: u16) -> Vec<u8> {
     }
     bytes.reverse();
     bytes
+}
+
+impl fmt::Debug for Proto {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.proto_type {
+            SIMPLE_STRING => {
+                write!(f, "SIMPLE_STRING: {:?}", std::str::from_utf8(&self.data).unwrap())
+            }
+            ERROR => {
+                write!(f, "ERROR: {:?}", std::str::from_utf8(&self.data).unwrap())
+            }
+            INTEGER => {
+                write!(f, "INTEGER: {:?}", std::str::from_utf8(&self.data).unwrap())
+            }
+            BULK_STRING => {
+                write!(f, "BULK_STRING: {:?}", std::str::from_utf8(&self.data).unwrap())
+            }
+            ARRAY => {
+                write!(f, "ARRAY: {:?}", self.arr)
+            }
+            _ => {
+                write!(f, "UNKNOWN: {:?}", self.data)
+            }
+        }
+    }
 }

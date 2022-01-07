@@ -3,14 +3,13 @@ pub mod reader;
 pub mod forwarder;
 pub mod cmd;
 
-use std::net::TcpStream;
+use std::{net::TcpStream, io::BufWriter};
 use std::io::Write;
 
 use self::{proto::Proto, reader::BufioReader};
 
 pub struct Conn {
-    stream: TcpStream,
-
+    writer: BufWriter<TcpStream>,
     reader: BufioReader<TcpStream>,
 }
 
@@ -23,7 +22,7 @@ impl Conn {
     pub fn new_from_tcp_stream(stream: TcpStream) -> Self {
         let read_stream = stream.try_clone().expect("Failed to clone stream");
         Self { 
-            stream, 
+            writer: BufWriter::new(stream),
             reader: BufioReader::new(read_stream),
         }
     }
@@ -38,15 +37,18 @@ impl Conn {
     }
 
     pub fn encode(&mut self, proto: &Proto) {
-        proto.encode(&mut self.stream).unwrap();
+        proto.encode(&mut self.writer).unwrap();
+        self.writer.flush().unwrap();
     }
 
     pub fn encode_bytes(&mut self, bytes: &[u8]) {
-        match self.stream.write(bytes) {
+        match self.writer.write(bytes) {
             Err(e) => {
                 println!("{:?}", e);
             }
-            Ok(_) => {},
+            Ok(_) => {
+                self.writer.flush().unwrap();
+            },
         }
     }
 }

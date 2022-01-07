@@ -1,5 +1,5 @@
 use std::{
-    io::{BufRead, BufReader, Error, Read},
+    io::{BufRead, BufReader, Error, Read, ErrorKind},
 };
 
 const SEEK_BUF_SIZE: usize = 8;
@@ -20,8 +20,11 @@ impl<R: Read> BufioReader<R> {
         loop {
             match self.reader.read_until(b'\n', buf) {
                 Ok(n) => {
+                    if n == 0 {
+                        return Err(Error::new(ErrorKind::Other, "EOF"));
+                    }
                     total += n;
-                    if n == 0 || buf[n - 2] == b'\r' {
+                    if buf[n - 2] == b'\r' {
                         return Ok(total);
                     }
                 }

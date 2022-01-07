@@ -16,4 +16,11 @@ impl<'a> Command<'a> {
         }
         Some(&self.req.arr[0].data)
     }
+
+    pub fn key(&self) -> Option<&Vec<u8>> {
+        if self.req.arr.len() <= 1 {
+            return None;
+        }
+        Some(&self.req.arr[1].data)
+    }
 }

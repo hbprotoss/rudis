@@ -14,7 +14,7 @@ fn handle_client(stream: TcpStream) {
     loop {
         let mut req = Proto::new();
         conn.decode(&mut req);
-        println!("{:?}", req);
+        println!("req: {:?}", req);
         let mut reply = Proto::new();
         let mut command = Command::new(&mut req, &mut reply);
         forwarder.forward(&mut command);
