@@ -7,18 +7,16 @@ use crate::redis::proto::with_error;
 
 use super::{cmd::Command, Conn};
 
-pub struct Forwarder<H: Hasher> {
+pub struct Forwarder {
     node_conns: Vec<Conn>,
-    hasher: H,
 }
 
-impl Forwarder<DefaultHasher> {
+impl Forwarder {
     pub fn new() -> Self { Self { 
         node_conns: vec![
             Conn::new("192.168.100.53".to_string(), 6379),
             Conn::new("192.168.100.53".to_string(), 6380),
         ],
-        hasher: DefaultHasher::new(),
      } }
 
     pub fn forward(&mut self, cmd: &mut Command) {
@@ -48,8 +46,9 @@ impl Forwarder<DefaultHasher> {
     }
 
     fn determin_node(&mut self, key: &Vec<u8>) -> &mut Conn {
-        Hash::hash_slice(key, &mut self.hasher);
-        let hash = self.hasher.finish();
+        let mut hasher = DefaultHasher::new();
+        Hash::hash_slice(key, &mut hasher);
+        let hash = hasher.finish();
         let size = self.node_conns.len();
         let index = hash as usize % size;
         println!("hash: {:?}, index: {:?}", hash, index);
