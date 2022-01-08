@@ -1,4 +1,5 @@
-use redis::Server;
+use redis::server::Server;
+
 
 mod redis;
 
