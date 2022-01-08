@@ -6,7 +6,7 @@ use rand::Rng;
 
 use crate::redis::proto::with_error;
 
-use super::{cmd::Command, Conn};
+use super::{cmd::Command, conn::Conn, };
 
 pub struct Forwarder {
     node_conns: Vec<Conn>,
