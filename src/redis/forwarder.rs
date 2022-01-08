@@ -1,6 +1,7 @@
 
 use std::{str::from_utf8, hash::{Hash, Hasher}, collections::hash_map::DefaultHasher};
 
+use log::{debug, error, log_enabled};
 use rand::Rng;
 
 use crate::redis::proto::with_error;
@@ -22,15 +23,19 @@ impl Forwarder {
     pub fn forward(&mut self, cmd: &mut Command) {
         match cmd.name() {
             Some(name) => {
-                println!("command: {:?}", from_utf8(name).unwrap());
+                if log_enabled!(log::Level::Debug) {
+                    debug!("forward: {:?}", from_utf8(name).unwrap());
+                }
                 let conn: &mut Conn;
                 match cmd.key() {
                     Some(key) => {
-                        println!("key: {:?}", from_utf8(key).unwrap());
+                        if log_enabled!(log::Level::Debug) {
+                            debug!("key: {:?}", from_utf8(key).unwrap());
+                        }
                         conn = self.determin_node(cmd.key().unwrap());
                     },
                     None => {
-                        println!("key: none");
+                        error!("key: none");
                         let mut rng = rand::thread_rng();
                         let index = rng.gen_range(0..self.node_conns.len());
                         conn = self.node_conns.get_mut(index).unwrap();
@@ -51,7 +56,7 @@ impl Forwarder {
         let hash = hasher.finish();
         let size = self.node_conns.len();
         let index = hash as usize % size;
-        println!("hash: {:?}, index: {:?}", hash, index);
+        debug!("hash: {:?}, index: {:?}", hash, index);
         self.node_conns.get_mut(index).unwrap()
     }
 }

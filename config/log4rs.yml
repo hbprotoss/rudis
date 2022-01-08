@@ -1,0 +1,11 @@
+appenders:
+  # An appender named "stdout" that writes to stdout
+  stdout:
+    kind: console
+    encoder:
+      pattern: "{d} {l} {t} - {m}{n}"
+
+root:
+  level: debug
+  appenders:
+    - stdout

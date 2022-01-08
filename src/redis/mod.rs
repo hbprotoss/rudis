@@ -6,6 +6,8 @@ pub mod cmd;
 use std::{net::TcpStream, io::BufWriter};
 use std::io::Write;
 
+use log::debug;
+
 use self::{proto::Proto, reader::BufioReader};
 
 pub struct Conn {
@@ -30,7 +32,7 @@ impl Conn {
     pub fn decode(&mut self, proto: &mut Proto) {
         match proto.decode(&mut self.reader) {
             Err(e) => {
-                println!("{:?}", e);
+                debug!("{:?}", e);
             }
             Ok(_) => {},
         }
@@ -44,7 +46,7 @@ impl Conn {
     pub fn encode_bytes(&mut self, bytes: &[u8]) {
         match self.writer.write(bytes) {
             Err(e) => {
-                println!("{:?}", e);
+                debug!("{:?}", e);
             }
             Ok(_) => {
                 self.writer.flush().unwrap();

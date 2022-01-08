@@ -1,12 +1,8 @@
 use std::{io::{Error, ErrorKind, Read, Write, BufWriter}, vec, fmt, };
 
-use super::reader::BufioReader;
+use log::{debug, log_enabled};
 
-struct Buffer<'a> {
-    buf: &'a mut [u8],
-    r: usize,
-    w: usize,
-}
+use super::reader::BufioReader;
 
 type ProtoType = u8;
 const UNKNOWN: ProtoType = 0;
@@ -45,7 +41,9 @@ impl Proto {
     pub fn decode(&mut self, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
         let mut line: Vec<u8> = vec![];
         let n = reader.read_clrf(&mut line)?;
-        println!("{:?} read: {:?}", n, std::str::from_utf8(&line).unwrap());
+        if log_enabled!(log::Level::Debug) {
+            debug!("{:?} read: {:?}", n, std::str::from_utf8(&line).unwrap());
+        }
         self.proto_type = line[0];
         match self.proto_type {
             SIMPLE_STRING | ERROR | INTEGER => {
@@ -147,18 +145,6 @@ fn num_from_bytes(bytes: &[u8]) -> i16 {
     } else {
         num
     }
-}
-
-#[inline]
-fn num_to_bytes(num: u16) -> Vec<u8> {
-    let mut bytes = vec![];
-    let mut n = num;
-    while n > 0 {
-        bytes.push((n % 10) as u8 + b'0');
-        n /= 10;
-    }
-    bytes.reverse();
-    bytes
 }
 
 impl fmt::Debug for Proto {

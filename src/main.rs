@@ -3,6 +3,8 @@ mod redis;
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 
+use log::{debug, info, error};
+
 use redis::forwarder::Forwarder;
 use redis::proto::Proto;
 use redis::Conn;
@@ -14,7 +16,7 @@ fn handle_client(stream: TcpStream) {
     loop {
         let mut req = Proto::new();
         conn.decode(&mut req);
-        println!("req: {:?}", req);
+        debug!("req: {:?}", req);
         let mut reply = Proto::new();
         let mut command = Command::new(&mut req, &mut reply);
         forwarder.forward(&mut command);
@@ -23,20 +25,22 @@ fn handle_client(stream: TcpStream) {
 }
 
 fn main() {
+    log4rs::init_file("config/log4rs.yml", Default::default()).unwrap();
+
     let listener = TcpListener::bind("0.0.0.0:3333").unwrap();
     // accept connections and process them, spawning a new thread for each one
-    println!("Server listening on port 3333");
+    info!("Server listening on port 3333");
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                println!("New connection: {}", stream.peer_addr().unwrap());
+                info!("New connection: {}", stream.peer_addr().unwrap());
                 thread::spawn(|| {
                     // connection succeeded
                     handle_client(stream)
                 });
             }
             Err(e) => {
-                println!("Error: {}", e);
+                error!("Error: {}", e);
                 /* connection failed */
             }
         }
