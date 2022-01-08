@@ -3,7 +3,7 @@ appenders:
   stdout:
     kind: console
     encoder:
-      pattern: "{d} {l} {t} - {m}{n}"
+      pattern: "{d(%Y-%m-%d %H:%M:%S%.3f)} {l:<5} {t} - {m}{n}"
 
 root:
   level: debug
