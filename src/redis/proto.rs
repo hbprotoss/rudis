@@ -1,4 +1,5 @@
 use std::{io::{Error, ErrorKind, }, vec, fmt, };
+use async_recursion::async_recursion;
 use futures::executor::block_on;
 
 use log::{debug, log_enabled};
@@ -40,7 +41,8 @@ impl Proto {
         }
     }
 
-    pub async fn decode(&mut self, reader: &mut BufioReader<impl AsyncRead+Unpin>) -> Result<&Proto, Error> {
+    #[async_recursion]
+    pub async fn decode(&mut self, reader: &mut BufioReader<impl AsyncRead+Unpin+Send>) -> Result<& mut Proto, Error> {
         let mut line: Vec<u8> = vec![];
         let n = reader.read_clrf(&mut line).await?;
         if log_enabled!(log::Level::Debug) {
@@ -64,7 +66,8 @@ impl Proto {
         Ok(self)
     }
 
-    pub async fn encode(&self, writer: &mut BufWriter<impl AsyncWrite+Unpin>) -> Result<(), Error> {
+    #[async_recursion]
+    pub async fn encode(&self, writer: &mut BufWriter<impl AsyncWrite+Unpin+Send>) -> Result<(), Error> {
         match self.proto_type {
             SIMPLE_STRING | ERROR | INTEGER => {
                 writer.write_all(&[self.proto_type]).await?;
@@ -87,7 +90,7 @@ impl Proto {
                 writer.write_all(self.len.to_string().as_bytes()).await?;
                 writer.write_all(CLRF).await?;
                 for p in &self.arr {
-                    block_on(p.encode(writer))?;
+                    p.encode(writer).await?;
                 }
                 Ok(())
             }
@@ -111,7 +114,8 @@ impl Proto {
         Ok(self)
     }
 
-    async fn decode_array(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl AsyncRead+Unpin>) ->  Result<&Proto, Error> {
+    #[async_recursion]
+    async fn decode_array(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl AsyncRead+Unpin+Send>) ->  Result<& mut Proto, Error> {
         let array_size = num_from_bytes(&line[1..line.len()-2]);
         self.len = array_size;
         for _ in 0..array_size {
