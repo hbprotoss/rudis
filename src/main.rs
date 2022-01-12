@@ -1,13 +1,11 @@
-use redis::server::Server;
-
-
 mod redis;
 
+use redis::server::Server;
 
-
-fn main() {
+#[tokio::main]
+pub async fn main() {
     log4rs::init_file("config/log4rs.yml", Default::default()).unwrap();
 
     let mut s = Server::new();
-    s.serve();
+    s.serve().await;
 }

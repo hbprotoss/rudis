@@ -1,6 +1,8 @@
-use std::{io::{Error, ErrorKind, Read, Write, BufWriter}, vec, fmt, };
+use std::{io::{Error, ErrorKind, }, vec, fmt, };
+use futures::executor::block_on;
 
 use log::{debug, log_enabled};
+use tokio::io::{AsyncWriteExt, AsyncRead, BufWriter, AsyncWrite};
 
 use super::reader::BufioReader;
 
@@ -38,9 +40,9 @@ impl Proto {
         }
     }
 
-    pub fn decode(&mut self, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
+    pub async fn decode(&mut self, reader: &mut BufioReader<impl AsyncRead+Unpin>) -> Result<&Proto, Error> {
         let mut line: Vec<u8> = vec![];
-        let n = reader.read_clrf(&mut line)?;
+        let n = reader.read_clrf(&mut line).await?;
         if log_enabled!(log::Level::Debug) {
             debug!("{:?} read: {:?}", n, std::str::from_utf8(&line).unwrap());
         }
@@ -50,10 +52,10 @@ impl Proto {
                 self.data = line[1..line.len()-2].to_vec();
             }
             BULK_STRING => {
-                self.decode_bulk_string(&line, reader)?;
+                self.decode_bulk_string(&line, reader).await?;
             }
             ARRAY => {
-                self.decode_array(&line, reader)?;
+                self.decode_array(&line, reader).await?;
             }
             _ => {
                 return Err(Error::new(ErrorKind::Other, "unknown proto type"));
@@ -62,30 +64,30 @@ impl Proto {
         Ok(self)
     }
 
-    pub fn encode(&self, writer: &mut BufWriter<impl Write>) -> Result<(), Error> {
+    pub async fn encode(&self, writer: &mut BufWriter<impl AsyncWrite+Unpin>) -> Result<(), Error> {
         match self.proto_type {
             SIMPLE_STRING | ERROR | INTEGER => {
-                writer.write_all(&[self.proto_type])?;
-                writer.write_all(&self.data)?;
-                writer.write_all(CLRF)?;
+                writer.write_all(&[self.proto_type]).await?;
+                writer.write_all(&self.data).await?;
+                writer.write_all(CLRF).await?;
                 Ok(())
             }
             BULK_STRING => {
-                writer.write_all(&[self.proto_type])?;
-                writer.write_all(self.len.to_string().as_bytes())?;
-                writer.write_all(CLRF)?;
+                writer.write_all(&[self.proto_type]).await?;
+                writer.write_all(self.len.to_string().as_bytes()).await?;
+                writer.write_all(CLRF).await?;
                 if self.len > 0 {
-                    writer.write_all(&self.data)?;
-                    writer.write_all(CLRF)?;
+                    writer.write_all(&self.data).await?;
+                    writer.write_all(CLRF).await?;
                 }
                 Ok(())
             }
             ARRAY => {
-                writer.write_all(&[self.proto_type])?;
-                writer.write_all(self.len.to_string().as_bytes())?;
-                writer.write_all(CLRF)?;
+                writer.write_all(&[self.proto_type]).await?;
+                writer.write_all(self.len.to_string().as_bytes()).await?;
+                writer.write_all(CLRF).await?;
                 for p in &self.arr {
-                    p.encode(writer)?;
+                    block_on(p.encode(writer))?;
                 }
                 Ok(())
             }
@@ -95,26 +97,26 @@ impl Proto {
         }
     }
 
-    fn decode_bulk_string(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
+    async fn decode_bulk_string(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl AsyncRead+Unpin>) -> Result<&Proto, Error> {
         let len = num_from_bytes(&line[1..line.len()-2]);
         self.len = len;
         if len < 0 {
             return Ok(self);
         }
-        let n = reader.read_n(len as u64, &mut self.data)?;
+        let n = reader.read_n(len as u64, &mut self.data).await?;
         if (n as i16) < len {
             return Err(Error::new(ErrorKind::Other, "not enough data"));
         }
-        reader.discard(2);
+        reader.discard(2).await;
         Ok(self)
     }
 
-    fn decode_array(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl Read>) -> Result<&Proto, Error> {
+    async fn decode_array(&mut self, line: &Vec<u8>, reader: &mut BufioReader<impl AsyncRead+Unpin>) ->  Result<&Proto, Error> {
         let array_size = num_from_bytes(&line[1..line.len()-2]);
         self.len = array_size;
         for _ in 0..array_size {
             let mut p_proto = Box::new(Proto::new());
-            p_proto.as_mut().decode(reader)?;
+            p_proto.as_mut().decode(reader).await?;
             self.arr.push(p_proto);
         }
         Ok(self)

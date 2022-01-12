@@ -6,21 +6,21 @@ use rand::Rng;
 
 use crate::redis::proto::with_error;
 
-use super::{cmd::Command, conn::Conn, };
+use super::{cmd::Command, conn::{Conn, }, };
 
 pub struct Forwarder {
     node_conns: Vec<Conn>,
 }
 
 impl Forwarder {
-    pub fn new() -> Self { Self { 
+    pub async fn new() -> Self { Self { 
         node_conns: vec![
-            Conn::new("192.168.100.53".to_string(), 6379),
-            Conn::new("192.168.100.53".to_string(), 6380),
+            Conn::new("192.168.100.53".to_string(), 6379).await,
+            Conn::new("192.168.100.53".to_string(), 6380).await,
         ],
      } }
 
-    pub fn forward(&mut self, cmd: &mut Command) {
+    pub async fn forward<'a>(&mut self, cmd: &mut Command<'a>) {
         match cmd.name() {
             Some(name) => {
                 if log_enabled!(log::Level::Debug) {
@@ -41,8 +41,8 @@ impl Forwarder {
                         conn = self.node_conns.get_mut(index).unwrap();
                     },
                 }
-                conn.encode(cmd.req);
-                conn.decode(cmd.reply);
+                conn.encode(cmd.req).await;
+                conn.decode(cmd.reply).await;
             }
             None => {
                 with_error(cmd.reply, "ERR unknown command");
