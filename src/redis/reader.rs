@@ -1,5 +1,6 @@
 use std::io::{Error, ErrorKind};
 
+use log::debug;
 use tokio::io::{BufReader, AsyncRead, AsyncReadExt, AsyncBufReadExt};
 
 const SEEK_BUF_SIZE: usize = 8;
@@ -36,7 +37,7 @@ impl<R: AsyncRead+Unpin> BufioReader<R> {
     }
 
     pub async fn discard(&mut self, offset: u64) -> u64 {
-        let mut t = self.reader.get_mut().take(offset);
+        let mut t = (&mut self.reader).take(offset);
         let mut buf = [0 as u8; SEEK_BUF_SIZE];
         let mut n = 0 as usize;
         loop {
@@ -50,7 +51,7 @@ impl<R: AsyncRead+Unpin> BufioReader<R> {
     }
 
     pub async fn read_n(&mut self, n: u64, buf: &mut Vec<u8>) -> Result<usize, Error> {
-        self.reader.get_mut().take(n).read_to_end(buf).await
+        (&mut self.reader).take(n).read_to_end(buf).await
     }
 
     pub async fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
