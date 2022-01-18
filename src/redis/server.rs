@@ -1,38 +1,39 @@
-use tokio::net::{TcpListener, TcpStream};
 use std::io::Result;
-
+use tokio::net::{TcpListener, TcpStream};
 
 use log::{debug, info};
 
 use crate::redis::cmd::Command;
 use crate::redis::proto::Proto;
+use crate::rudis_config::RudisConfig;
 
 use super::conn::Conn;
 use super::forwarder::Forwarder;
 
-
-pub struct Server {}
+pub struct Server {
+    pub rc: RudisConfig,
+}
 
 impl Server {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(rc: RudisConfig) -> Self {
+        Self { rc }
     }
 }
 
 impl Server {
     pub async fn serve(&mut self) {
-        let listener = TcpListener::bind("0.0.0.0:3333").await.unwrap();
+        let addr = format!("{}:{}", self.rc.listen, self.rc.port);
+        let listener = TcpListener::bind(&addr).await.unwrap();
         // accept connections and process them, spawning a new thread for each one
-        info!("Server listening on port 3333");
+        info!("Server listening on {}", &addr);
         tokio::select! {
             _ = self.run(listener) => {
                 info!("Server stopped");
             }
         }
-        
     }
 
-    async fn run(& self, listener: TcpListener) -> Result<()> {
+    async fn run(&self, listener: TcpListener) -> Result<()> {
         loop {
             let (stream, _) = listener.accept().await?;
             info!("New connection: {}", stream.peer_addr()?);
